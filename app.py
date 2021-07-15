@@ -19,8 +19,6 @@ size = (int(camera.get(cv2.CAP_PROP_FRAME_WIDTH)),
             int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 print('size:'+repr(size))
 
-camera.read()
-
 reader = BarcodeReader()
 reader.init_license("t0069fQAAADni8mnJeS0cnoLp85KEXFCh78ltXDT3x52OWWW0qsnvVBOkG7nz+do12XxdqoHCJQ+U+Bbg+RPP/7nyQsQkDtOC")
 
