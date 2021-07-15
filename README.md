@@ -2,8 +2,14 @@
 
 Motion detection for barcode scanning.
 
+## Requirements
 
-Usage:
+```
+pip install dbr, opencv-python
+```
+
+
+## Usage
 
 ```
 Usage: app.py [-h] [-i INDEX] [-f FPS] [-a MIN_AREA]
