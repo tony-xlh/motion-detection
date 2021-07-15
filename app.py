@@ -24,14 +24,14 @@ camera.read()
 reader = BarcodeReader()
 reader.init_license("t0069fQAAADni8mnJeS0cnoLp85KEXFCh78ltXDT3x52OWWW0qsnvVBOkG7nz+do12XxdqoHCJQ+U+Bbg+RPP/7nyQsQkDtOC")
 
-detected_barcodes=set()
-historty={}
+detected_barcode_text=""
+history={}
 
-first_frame = None
-first_frame_gray = None
+reference_frame = None
+reference_frame_gray = None
 occupied=False
 
-frame_updated = 0
+capture_times = 0
 
 def show_detected_barcode_frame(frame, resized_width,resized_height, result):
     frame_clone=frame.copy()
@@ -67,17 +67,19 @@ while True:
     scale=resized_width/width
     resized_height=int(height*scale)
     resized = cv2.resize(frame, (resized_width, resized_height))
+    resized_clone = resized.copy()
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (21, 21), 0)
     
-
-    if frame_updated<25:
-        first_frame = resized
-        first_frame_gray = gray
-        frame_updated = frame_updated+1
+    if capture_times<25:
+        reference_frame = resized
+        reference_frame_gray = gray
+        capture_times = capture_times+1
         continue
     
-    frame_delta = cv2.absdiff(first_frame_gray, gray)
+
+    
+    frame_delta = cv2.absdiff(reference_frame_gray, gray)
     thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
     cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
@@ -89,13 +91,19 @@ while True:
         cv2.rectangle(resized, (x, y), (x + w, y + h), (0, 255, 0), 2)
         text = "Occupied"
         
+    # draw the text and timestamp on the frame
+    cv2.putText(resized, "Status: {}".format(text), (10, 20),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+    cv2.putText(resized, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
+        (10, resized.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+        
     if text == "Occupied":
-        if len(detected_barcodes)==0:
+        if detected_barcode_text=="":
             text_results = reader.decode_buffer(frame)
             if text_results!=None:
                 text_result=text_results[0]
                 barcode_text=text_result.barcode_text
-                detected_barcodes.add(barcode_text)
+                detected_barcode_text=barcode_text
                 print("Found barcode: "+barcode_text)
                 confidence = text_result.extended_results[0].confidence;
                 print("Confidence: "+str(confidence))
@@ -106,30 +114,25 @@ while True:
                 img = show_detected_barcode_frame(frame,resized_width,resized_height,text_result)
                 
                 #write frames to files
-                cv2.imwrite("first_frame.jpg",first_frame)
+                cv2.imwrite("reference_frame.jpg",reference_frame)
+                cv2.imwrite("occupied.jpg",resized)
+                cv2.imwrite("frame.jpg",resized_clone)
                 cv2.imwrite("thresh.jpg",thresh)
                 cv2.imwrite("frame_delta.jpg",frame_delta)
                 cv2.imwrite("detected_frame.jpg",img)
                 
                 #add to history
                 times=0
-                if barcode_text in historty:
-                    times=historty[barcode_text]
-                historty[barcode_text]=times+1
+                if barcode_text in history:
+                    times=history[barcode_text]
+                history[barcode_text]=times+1
                 print("Scan history:")
-                print(historty)
+                print(history)
     else:
-        detected_barcodes=set()
-
-    
-    # draw the text and timestamp on the frame
-    cv2.putText(resized, "Status: {}".format(text), (10, 20),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-    cv2.putText(resized, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
-        (10, resized.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+        detected_barcode_text=""
         
     # show the frame and record if the user presses a key
-    cv2.imshow("First Frame", first_frame)
+    cv2.imshow("Reference Frame", reference_frame)
     cv2.imshow("Video Stream", resized)
     cv2.imshow("Thresh", thresh)
     cv2.imshow("Frame Delta", frame_delta)
